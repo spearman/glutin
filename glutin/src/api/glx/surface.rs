@@ -232,6 +232,8 @@ impl<T: SurfaceTypeTrait> GlSurface<T> for Surface<T> {
     }
 
     fn set_swap_interval(&self, _context: &Self::Context, interval: SwapInterval) -> Result<()> {
+        /*FIXME:debug*/
+        println!("############# SET SWAP #################");
         let extra = match self.display.inner.glx_extra {
             Some(extra) if self.display.inner.features.contains(DisplayFeatures::SWAP_CONTROL) => {
                 extra
@@ -247,27 +249,61 @@ impl<T: SurfaceTypeTrait> GlSurface<T> for Surface<T> {
             SwapInterval::DontWait => 0,
             SwapInterval::Wait(n) => n.get(),
         };
+        /*FIXME:debug*/ println!("SETTING INTERVAL: {}", interval);
 
         let mut applied = false;
 
         // Apply the `EXT` first since it's per window.
         if !applied && self.display.inner.client_extensions.contains("GLX_EXT_swap_control") {
+            /*FIXME:debug*/
+            println!("############# SET GLX EXT SWAP #################");
+            println!("LOADED: {}", extra.SwapIntervalEXT.is_loaded());
+            println!("DISPLAY INNER: {:p}", self.display.inner.raw.cast::<glutin_glx_sys::glx_extra::types::Display>());
             super::last_glx_error(|| unsafe {
                 // Check for error explicitly here, other apis do have indication for failure.
+                /*FIXME:debug*/
+                //extra.SwapIntervalEXT(std::ptr::null_mut::<glutin_glx_sys::glx_extra::types::Display>(), self.raw, interval as _);
                 extra.SwapIntervalEXT(self.display.inner.raw.cast(), self.raw, interval as _);
                 applied = true;
             })?;
+        }
+        /*FIXME:debug*/
+        if applied {
+            println!("############# APPLIED GLX EXT SWAP CONTROL #################");
+            /*
+            let mut swap = unsafe { std::mem::zeroed() };
+            println!("QUERY DRAWABLE: {:?}", self.raw);
+            println!("QUERY SWAP INTERVAL EXT: {}", glx_extra::SWAP_INTERVAL_EXT);
+            unsafe {
+                //super::GLX.as_ref().unwrap().QueryDrawable(
+                self.display.inner.glx.QueryDrawable(
+                    self.display.inner.raw.cast(),
+                    self.raw,
+                    glx_extra::SWAP_INTERVAL_EXT as i32,
+                    &mut swap,
+                );
+            }
+            println!("GOT SWAP: {}", swap);
+            */
         }
 
         if !applied && self.display.inner.client_extensions.contains("GLX_MESA_swap_control") {
             unsafe {
                 applied = extra.SwapIntervalMESA(interval as _) != glx::BAD_CONTEXT as _;
             }
+            /*FIXME:debug*/
+            if applied {
+              println!("############# SET MESA SWAP #################");
+            }
         }
 
         if !applied && self.display.inner.client_extensions.contains("GLX_SGI_swap_control") {
             unsafe {
                 applied = extra.SwapIntervalSGI(interval as _) != glx::BAD_CONTEXT as _;
+            }
+            /*FIXME:debug*/
+            if applied {
+              println!("############# SET SGI SWAP #################");
             }
         }
 
